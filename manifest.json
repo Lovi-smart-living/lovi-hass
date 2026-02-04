@@ -1,0 +1,14 @@
+{
+  "domain": "lovi",
+  "name": "Lovi",
+  "config_flow": true,
+  "documentation": "https://github.com/lovi-iot/lovi-hass/blob/main/README.md",
+  "issue_tracker": "https://github.com/lovi-iot/lovi-hass/issues",
+  "dependencies": [],
+  "codeowners": ["@lovi-iot"],
+  "requirements": [],
+  "version": "0.1.0",
+  "iot_class": "local_polling",
+  "log_level": "info"
+}
+

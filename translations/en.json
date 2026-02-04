@@ -1,0 +1,33 @@
+{
+    "entity": {
+        "sensor": {
+            "presence_status": {
+                "state": {
+                    "detected": "Detected",
+                    "not_detected": "Not Detected"
+                },
+                "name": "Presence"
+            },
+            "motion_status": {
+                "state": {
+                    "detected": "Detected",
+                    "clear": "Clear"
+                },
+                "name": "Motion"
+            },
+            "detection_distance": {
+                "name": "Distance"
+            },
+            "detection_sensitivity": {
+                "name": "Sensitivity"
+            },
+            "device_temperature": {
+                "name": "Temperature"
+            },
+            "device_uptime": {
+                "name": "Uptime"
+            }
+        }
+    }
+}
+
