@@ -8,13 +8,21 @@ from ..base import LoviDeviceInfo
 from ..registry import registry
 
 # Import device classes to register them
-from .presence_gen_one import PresenceGenOne, PresenceGenOneFactory
+from .presence_gen_one import (
+    PresenceGenOne,
+    PresenceGenOneFactory,
+    TemperatureHumiditySensor,
+    TemperatureHumiditySensorFactory,
+)
 
 # Register factories (auto-registration)
 registry.register(PresenceGenOneFactory())
+registry.register(TemperatureHumiditySensorFactory())
 
 __all__ = [
     "LoviDeviceInfo",
     "PresenceGenOne",
     "PresenceGenOneFactory",
+    "TemperatureHumiditySensor",
+    "TemperatureHumiditySensorFactory",
 ]

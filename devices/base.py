@@ -36,8 +36,33 @@ Example:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
+
+
+@dataclass
+class DeviceCapabilities:
+    """Describes what a device type can do.
+
+    Attributes:
+        has_presence: Whether device reports presence detection
+        has_motion: Whether device reports motion detection
+        has_temperature: Whether device reports temperature
+        has_humidity: Whether device reports humidity
+        has_led: Whether device has LED indicator control
+        has_sensitivity: Whether device supports sensitivity control
+        max_distance: Maximum detection distance in meters (0 if not applicable)
+        supported_entities: List of HA entity types (e.g., ["sensor", "switch"])
+    """
+
+    has_presence: bool = False
+    has_motion: bool = False
+    has_temperature: bool = False
+    has_humidity: bool = False
+    has_led: bool = False
+    has_sensitivity: bool = False
+    max_distance: float = 0.0
+    supported_entities: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -188,6 +213,26 @@ class LoviDevice(ABC):
             Dictionary containing current device state
         """
         return {}
+
+    @property
+    def capabilities(self) -> DeviceCapabilities:
+        """Return device capabilities.
+
+        Returns:
+            DeviceCapabilities describing what this device supports
+        """
+        return DeviceCapabilities()
+
+    async def async_capabilities(self) -> DeviceCapabilities:
+        """Asynchronously detect and return device capabilities.
+
+        Override in device classes to detect capabilities from the device.
+        Default implementation returns the static capabilities property.
+
+        Returns:
+            DeviceCapabilities describing what this device supports
+        """
+        return self.capabilities
 
     @abstractmethod
     def update(self, data: dict[str, Any]) -> None:

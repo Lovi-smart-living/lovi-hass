@@ -308,6 +308,33 @@ class SecureApiClient:
         """
         return await self.request("DELETE", endpoint)
 
+    async def async_get_data(self) -> dict[str, Any]:
+        """Get device status data.
+
+        Returns:
+            Dictionary with device status (presence, motion, distance, etc.)
+        """
+        return await self.get("/api/status")
+
+    async def async_get_device_info(self) -> dict[str, Any]:
+        """Get device information.
+
+        Returns:
+            Dictionary with device info (id, type, name, model, etc.)
+        """
+        return await self.get("/api/device")
+
+    async def async_set_settings(self, settings: dict[str, Any]) -> dict[str, Any]:
+        """Update device settings.
+
+        Args:
+            settings: Settings to update (e.g., {"sensitivity": 75, "led": true})
+
+        Returns:
+            Dictionary with updated settings
+        """
+        return await self.post("/api/settings", settings)
+
     async def close(self) -> None:
         """Close the client session."""
         if self._session and not self._session.closed:

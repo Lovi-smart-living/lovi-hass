@@ -33,29 +33,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
-
-@dataclass
-class DeviceCapabilities:
-    """Describes what a device type can do.
-
-    Attributes:
-        supported_entities: List of HA entity types (e.g., ["sensor", "switch"])
-        has_sensitivity: Whether device supports sensitivity control
-        has_led_control: Whether device supports LED on/off control
-        supports_motion: Whether device reports motion detection
-        supports_presence: Whether device reports presence detection
-        has_temperature: Whether device reports temperature
-        has_humidity: Whether device reports humidity
-    """
-
-    supported_entities: list[str] = field(default_factory=list)
-    has_sensitivity: bool = False
-    has_led_control: bool = False
-    supports_motion: bool = False
-    supports_presence: bool = False
-    has_temperature: bool = False
-    has_humidity: bool = False
-    has_power_monitoring: bool = False
+from .base import DeviceCapabilities
 
 
 class DeviceFactory(ABC):

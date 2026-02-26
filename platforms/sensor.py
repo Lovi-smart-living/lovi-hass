@@ -10,18 +10,18 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTemperature
+from homeassistant.const import PERCENTAGE, UnitOfTemperature, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MANUFACTURER
-from .coordinator import LoviDataUpdateCoordinator
-from .devices.wifi.presence_gen_one import PresenceGenOne
+from ..const import DOMAIN, MANUFACTURER
+from ..coordinator import LoviDataUpdateCoordinator
+from ..devices.base import DeviceCapabilities, LoviDevice
 
 
-SENSOR_TYPES: list[SensorEntityDescription] = [
+SENSOR_DESCRIPTIONS: list[SensorEntityDescription] = [
     SensorEntityDescription(
         key="presence",
         name="Presence",
@@ -48,8 +48,8 @@ SENSOR_TYPES: list[SensorEntityDescription] = [
     SensorEntityDescription(
         key="sensitivity",
         name="Sensitivity",
-        icon="mdi:-tune",
-        native_unit_of_measurement="%",
+        icon="mdi:tune",
+        native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         translation_key="detection_sensitivity",
     ),
@@ -63,14 +63,48 @@ SENSOR_TYPES: list[SensorEntityDescription] = [
         translation_key="device_temperature",
     ),
     SensorEntityDescription(
+        key="humidity",
+        name="Humidity",
+        icon="mdi:water-percent",
+        native_unit_of_measurement=PERCENTAGE,
+        device_class=SensorDeviceClass.HUMIDITY,
+        state_class=SensorStateClass.MEASUREMENT,
+        translation_key="device_humidity",
+    ),
+    SensorEntityDescription(
         key="uptime",
         name="Uptime",
         icon="mdi:clock-outline",
+        native_unit_of_measurement=UnitOfTime.SECONDS,
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.TOTAL_INCREASING,
         translation_key="device_uptime",
     ),
 ]
+
+
+def _get_sensor_keys_for_capabilities(
+    capabilities: DeviceCapabilities,
+) -> list[str]:
+    """Get list of sensor keys based on device capabilities."""
+    keys: list[str] = []
+
+    if capabilities.has_presence:
+        keys.append("presence")
+    if capabilities.has_motion:
+        keys.append("motion")
+    if capabilities.max_distance > 0:
+        keys.append("distance")
+    if capabilities.has_sensitivity:
+        keys.append("sensitivity")
+    if capabilities.has_temperature:
+        keys.append("temperature")
+    if capabilities.has_humidity:
+        keys.append("humidity")
+
+    keys.append("uptime")
+
+    return keys
 
 
 async def async_setup_entry(
@@ -81,21 +115,27 @@ async def async_setup_entry(
     """Set up Lovi sensors from a config entry."""
     coordinator: LoviDataUpdateCoordinator = hass.data[DOMAIN][config_entry.entry_id]
 
-    # Wait for device to be available
     await coordinator.async_config_entry_first_refresh()
+
+    device: LoviDevice | None = coordinator.device
+    if device is None:
+        return
+
+    capabilities = device.capabilities
+    sensor_keys = _get_sensor_keys_for_capabilities(capabilities)
 
     entities: list[LoviSensor] = []
 
-    # Create sensors for each description
-    for description in SENSOR_TYPES:
-        entity = LoviSensor(coordinator, description)
-        entities.append(entity)
+    for description in SENSOR_DESCRIPTIONS:
+        if description.key in sensor_keys:
+            entity = LoviSensor(coordinator, description)
+            entities.append(entity)
 
     async_add_entities(entities)
 
 
 class LoviSensor(CoordinatorEntity, SensorEntity):
-    """Sensor entity for Lovi Presence Gen One device."""
+    """Sensor entity for Lovi devices."""
 
     def __init__(
         self,
@@ -108,7 +148,6 @@ class LoviSensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{coordinator.client.host}_{description.key}"
         self._attr_has_entity_name = True
 
-        # Set device info
         if coordinator.device:
             self._attr_device_info = DeviceInfo(
                 identifiers={(DOMAIN, coordinator.device.device_id)},
@@ -125,24 +164,22 @@ class LoviSensor(CoordinatorEntity, SensorEntity):
             return None
 
         device = self.coordinator.device
-
-        if not isinstance(device, PresenceGenOne):
-            return None
-
         key = self.entity_description.key
 
         if key == "presence":
-            return "detected" if device.is_present else "not_detected"
+            return "detected" if device.state.get("presence") else "not_detected"
         elif key == "motion":
-            return "detected" if device.has_motion else "clear"
+            return "detected" if device.state.get("motion") else "clear"
         elif key == "distance":
-            return device.distance
+            return device.state.get("distance")
         elif key == "sensitivity":
-            return device.sensitivity
+            return device.state.get("sensitivity")
         elif key == "temperature":
-            return device.temperature
+            return device.state.get("temperature")
+        elif key == "humidity":
+            return device.state.get("humidity")
         elif key == "uptime":
-            return device.uptime
+            return device.state.get("uptime")
 
         return None
 
@@ -152,14 +189,9 @@ class LoviSensor(CoordinatorEntity, SensorEntity):
         if self.coordinator.device is None:
             return None
 
-        device = self.coordinator.device
-
-        if not isinstance(device, PresenceGenOne):
-            return None
-
         if self.entity_description.key == "presence":
             return {
-                "device_type": device.device_type,
+                "device_type": self.coordinator.device.device_type,
             }
 
         return None
@@ -167,4 +199,3 @@ class LoviSensor(CoordinatorEntity, SensorEntity):
     async def async_update(self) -> None:
         """Update the entity."""
         await self.coordinator.async_request_refresh()
-

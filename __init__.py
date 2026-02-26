@@ -11,7 +11,7 @@ def async_setup_entry(hass, entry):
     from .coordinator import LoviDataUpdateCoordinator
     from .api import SecureApiClient
 
-    PLATFORMS: list[Platform] = [Platform.SENSOR]
+    PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER]
 
     host = entry.data[CONF_HOST]
     port = entry.data[CONF_PORT]
