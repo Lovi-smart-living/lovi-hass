@@ -5,7 +5,6 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow
-from homeassistant.components.zeroconf import ZeroconfServiceInfo
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
@@ -13,6 +12,12 @@ from homeassistant.data_entry_flow import FlowResult
 from .api import ApiCredentials, SecureApiClient
 from .api.exceptions import LoviConnectionError, LoviApiError
 from .const import DEFAULT_PORT, DOMAIN
+
+try:
+    from homeassistant.components.zeroconf import ZeroconfServiceInfo
+except ImportError:
+    # Fallback for older HA versions
+    from typing import Any as ZeroconfServiceInfo
 
 _LOGGER = logging.getLogger(__name__)
 
