@@ -9,15 +9,16 @@ def async_setup_entry(hass, entry):
 
     from .const import DOMAIN
     from .coordinator import LoviDataUpdateCoordinator
-    from .api import LoviApiClient
+    from .api import SecureApiClient
 
     PLATFORMS: list[Platform] = [Platform.SENSOR]
 
     host = entry.data[CONF_HOST]
     port = entry.data[CONF_PORT]
 
-    # Create API client
-    client = LoviApiClient(host, port)
+    # Create API client (use_https=False for local devices)
+    client = SecureApiClient(host, port, use_https=False)
+    client.set_hass(hass)
 
     # Create coordinator
     coordinator = LoviDataUpdateCoordinator(hass, client)

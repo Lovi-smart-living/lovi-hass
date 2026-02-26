@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from .api import LoviApiClient
+from .api import SecureApiClient
 from .api import LoviConnectionError
 from .const import DOMAIN
 from .devices import LoviDevice
@@ -26,7 +26,7 @@ class LoviDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     the device type reported by the device.
     """
 
-    def __init__(self, hass: HomeAssistant, client: LoviApiClient) -> None:
+    def __init__(self, hass: HomeAssistant, client: SecureApiClient) -> None:
         """Initialize the coordinator.
 
         Args:
