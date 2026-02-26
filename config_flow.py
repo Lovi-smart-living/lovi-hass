@@ -32,7 +32,7 @@ DEVICE_INFO_PROPERTIES = [
 ]
 
 
-class LoviConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Lovi."""
 
     VERSION = 1
