@@ -10,6 +10,7 @@
   "requirements": [],
   "version": "0.1.0",
   "iot_class": "local_polling",
-  "log_level": "info"
+  "log_level": "info",
+  "brand": "lovi"
 }
 
