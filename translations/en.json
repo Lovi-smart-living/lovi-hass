@@ -49,8 +49,33 @@
             "device_temperature": {
                 "name": "Temperature"
             },
+            "device_humidity": {
+                "name": "Humidity"
+            },
             "device_uptime": {
                 "name": "Uptime"
+            }
+        },
+        "switch": {
+            "led": {
+                "name": "LED Indicator"
+            }
+        },
+        "number": {
+            "sensitivity": {
+                "name": "Sensitivity",
+                "description": "Detection sensitivity (0-100%)"
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Lovi Device Options",
+                "description": "Configure your Lovi device settings.",
+                "data": {
+                    "port": "Port"
+                }
             }
         }
     }

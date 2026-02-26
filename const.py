@@ -4,7 +4,7 @@ from homeassistant.const import Platform
 DOMAIN = "lovi"
 
 # Platforms
-PLATFORMS = [Platform.SENSOR]
+PLATFORMS = [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER]
 
 # Configuration
 CONF_HOST = "host"
