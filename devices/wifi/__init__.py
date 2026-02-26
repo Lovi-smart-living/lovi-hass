@@ -1,6 +1,20 @@
-"""Lovi WiFi devices."""
-from .base import LoviDeviceInfo, LoviWifiDevice
-from .presence_gen_one import PresenceGenOne
+"""Lovi WiFi devices.
 
-__all__ = ["LoviDeviceInfo", "LoviWifiDevice", "PresenceGenOne"]
+This package contains WiFi-connected device implementations.
+Each device type has a factory that registers with the global registry.
+"""
 
+from ..base import LoviDeviceInfo
+from ..registry import registry
+
+# Import device classes to register them
+from .presence_gen_one import PresenceGenOne, PresenceGenOneFactory
+
+# Register factories (auto-registration)
+registry.register(PresenceGenOneFactory())
+
+__all__ = [
+    "LoviDeviceInfo",
+    "PresenceGenOne",
+    "PresenceGenOneFactory",
+]

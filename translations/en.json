@@ -1,4 +1,29 @@
 {
+    "config": {
+        "step": {
+            "user": {
+                "title": "Lovi Device",
+                "description": "Enter the IP address of your Lovi Presence Gen One device.",
+                "data": {
+                    "host": "Host/IP Address",
+                    "port": "Port"
+                }
+            },
+            "zeroconf_confirm": {
+                "title": "Lovi {name}",
+                "description": "Do you want to add the Lovi device at {host}?"
+            }
+        },
+        "error": {
+            "cannot_connect": "Failed to connect to device. Please check the IP address.",
+            "invalid_ip_address": "Invalid IP address format.",
+            "unknown": "Unexpected error occurred."
+        },
+        "abort": {
+            "already_configured": "Device is already configured.",
+            "cannot_connect": "Failed to connect to device."
+        }
+    },
     "entity": {
         "sensor": {
             "presence_status": {

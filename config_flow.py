@@ -1,14 +1,18 @@
 """Config flow for Lovi integration."""
 from ipaddress import ip_address
+import logging
 from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.components import zeroconf
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import DEFAULT_PORT, DOMAIN
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class LoviConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -44,6 +48,57 @@ class LoviConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Optional(CONF_PORT, default=DEFAULT_PORT): int,
                 }
             ),
+            errors=errors,
+        )
+
+    async def async_step_zeroconf(
+        self, discovery_info: zeroconf.ZeroconfServiceInfo
+    ) -> FlowResult:
+        """Handle zeroconf discovery."""
+        _LOGGER.debug("Discovered Lovi device via zeroconf: %s", discovery_info)
+
+        host = discovery_info.host
+        mac_address = discovery_info.properties.get("mac", "")
+        model = discovery_info.properties.get("model", "Lovi Device")
+
+        unique_id = f"lovi-{mac_address.replace(':', '').lower()}"
+
+        await self.async_set_unique_id(unique_id)
+        self._abort_if_unique_id_configured()
+
+        self.context["title_placeholders"] = {
+            "name": model,
+            "host": host,
+        }
+        self.context["discovery_info"] = discovery_info
+
+        return await self.async_step_zeroconf_confirm()
+
+    async def async_step_zeroconf_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle user confirmation of discovered device."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            discovery_info = self.context.get("discovery_info")
+            if discovery_info:
+                host = discovery_info.host
+                mac_address = discovery_info.properties.get("mac", "")
+                unique_id = f"lovi-{mac_address.replace(':', '').lower()}"
+
+                return self.async_create_entry(
+                    title=f"Lovi - {host}",
+                    data={
+                        CONF_HOST: host,
+                        CONF_PORT: DEFAULT_PORT,
+                    },
+                )
+
+        return self.async_show_form(
+            step_id="zeroconf_confirm",
+            data_schema=vol.Schema({}),
+            description_placeholders=self.context.get("title_placeholders"),
             errors=errors,
         )
 
