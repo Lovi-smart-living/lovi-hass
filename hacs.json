@@ -1,6 +1,6 @@
 {
   "name": "Lovi",
-  "content_in_root": true,
+  "content_in_root": false,
   "homeassistant": "2023.8.0",
   "hide_default_branch": false,
   "domains": [
