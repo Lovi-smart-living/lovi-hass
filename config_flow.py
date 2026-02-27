@@ -1,4 +1,5 @@
 """Config flow for Lovi integration."""
+import asyncio
 from ipaddress import ip_address
 import logging
 from typing import Any
@@ -92,31 +93,35 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
             prefix = ".".join(local_ip.split(".")[:3])
             discovered_devices = []
 
-            # Try common IPs including the known device IP
-            scan_ips = [1, 14, 50, 100, 150, 200, 250, 2, 3, 4, 5, 10, 20, 30, 40, 60, 70, 80, 90]
-            _LOGGER.debug("Scanning IPs: %s", [f"{prefix}.{i}" for i in scan_ips])
+            # Try common IPs - prioritize gateway and .14
+            scan_ips = [1, 14, 254, 100, 50, 200, 2, 3, 4, 5, 10, 20, 30, 40, 60, 70, 80, 90, 150, 250]
+            _LOGGER.info("Starting network scan from %s.%s - scanning %d IPs", prefix, ".x"*3, len(scan_ips))
             
             for last_octet in scan_ips:
                 ip = f"{prefix}.{last_octet}"
                 try:
-                    _LOGGER.debug("Checking IP: %s", ip)
-                    async with session.get(f"http://{ip}/status", timeout=aiohttp.ClientTimeout(total=2)) as resp:
+                    _LOGGER.debug("Checking %s...", ip)
+                    async with session.get(f"http://{ip}/status", timeout=aiohttp.ClientTimeout(total=1.5)) as resp:
                         if resp.status == 200:
                             data = await resp.json()
-                            _LOGGER.debug("Response from %s: %s", ip, data)
+                            _LOGGER.info("Got response from %s: %s", ip, data)
                             if "device_type" in data or "model" in data:
-                                _LOGGER.info("Found Lovi device at %s", ip)
+                                _LOGGER.info("FOUND LOvi device at %s", ip)
                                 discovered_devices.append({
                                     "host": ip,
                                     "port": 80,
                                     "model": data.get("model", "Lovi Device"),
                                     "device_type": data.get("device_type", "unknown"),
                                 })
+                                break  # Stop after first device found
+                except asyncio.TimeoutError:
+                    _LOGGER.debug("Timeout on %s", ip)
                 except Exception as e:
-                    _LOGGER.debug("Failed to check %s: %s", ip, e)
+                    _LOGGER.debug("Error on %s: %s", ip, e)
 
+            _LOGGER.info("Scan complete. Found %d devices", len(discovered_devices))
+            
             if discovered_devices:
-                # Found devices - create entry for first one
                 device = discovered_devices[0]
                 _LOGGER.info("Creating entry for device at %s", device["host"])
                 return await self._async_validate_and_create_entry(
