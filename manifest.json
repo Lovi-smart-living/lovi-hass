@@ -19,6 +19,6 @@
   "version": "0.1.0",
   "iot_class": "local_polling",
   "log_level": "debug",
-  "independent": true
+  "independent": true,
   "brand": "lovi"
 }
