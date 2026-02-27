@@ -3,6 +3,7 @@ from ipaddress import ip_address
 import logging
 from typing import Any
 
+import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.const import CONF_HOST, CONF_PORT
@@ -82,34 +83,42 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
             s.connect(("8.8.8.8", 80))
             local_ip = s.getsockname()[0]
             s.close()
-        except Exception:
-            pass
+            _LOGGER.debug("Local IP: %s", local_ip)
+        except Exception as e:
+            _LOGGER.warning("Failed to get local IP: %s", e)
 
         if local_ip:
             # Scan local network for Lovi devices
             prefix = ".".join(local_ip.split(".")[:3])
             discovered_devices = []
 
-            # Try common IPs or scan range
-            for last_octet in [1, 14, 50, 100, 150, 200, 250]:
+            # Try common IPs including the known device IP
+            scan_ips = [1, 14, 50, 100, 150, 200, 250, 2, 3, 4, 5, 10, 20, 30, 40, 60, 70, 80, 90]
+            _LOGGER.debug("Scanning IPs: %s", [f"{prefix}.{i}" for i in scan_ips])
+            
+            for last_octet in scan_ips:
                 ip = f"{prefix}.{last_octet}"
                 try:
-                    async with session.get(f"http://{ip}/status", timeout=1) as resp:
+                    _LOGGER.debug("Checking IP: %s", ip)
+                    async with session.get(f"http://{ip}/status", timeout=aiohttp.ClientTimeout(total=2)) as resp:
                         if resp.status == 200:
                             data = await resp.json()
+                            _LOGGER.debug("Response from %s: %s", ip, data)
                             if "device_type" in data or "model" in data:
+                                _LOGGER.info("Found Lovi device at %s", ip)
                                 discovered_devices.append({
                                     "host": ip,
                                     "port": 80,
                                     "model": data.get("model", "Lovi Device"),
                                     "device_type": data.get("device_type", "unknown"),
                                 })
-                except Exception:
-                    pass
+                except Exception as e:
+                    _LOGGER.debug("Failed to check %s: %s", ip, e)
 
             if discovered_devices:
                 # Found devices - create entry for first one
                 device = discovered_devices[0]
+                _LOGGER.info("Creating entry for device at %s", device["host"])
                 return await self._async_validate_and_create_entry(
                     device["host"],
                     device["port"],
