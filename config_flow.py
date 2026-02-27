@@ -163,17 +163,6 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
         """Handle zeroconf discovery."""
         _LOGGER.debug("Discovered Lovi device via zeroconf: %s", discovery_info)
 
-        # Get service type
-        service_type = discovery_info.type
-        
-        # If discovered via HTTP service, check if it's a Lovi device
-        if "_http._tcp" in service_type:
-            # Check if the name contains "lovi" or if we have lovi-specific properties
-            name = discovery_info.name.lower() if discovery_info.name else ""
-            if "lovi" not in name:
-                _LOGGER.debug("Discovered HTTP service is not a Lovi device: %s", name)
-                return self.async_abort(reason="not_lovi_device")
-
         host = discovery_info.host
         port = discovery_info.port
         properties = discovery_info.properties
