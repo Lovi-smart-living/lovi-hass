@@ -1,16 +1,13 @@
 """Config flow for Lovi integration."""
-import asyncio
 from ipaddress import ip_address
 import logging
 from typing import Any
 
-import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import aiohttp_client
 
 from .api import ApiCredentials, SecureApiClient
 from .api.exceptions import LoviConnectionError, LoviApiError
@@ -42,103 +39,26 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step - auto-discover devices."""
-        # Automatically trigger discovery first
-        return await self.async_step_discovery()
-
-    async def async_step_discovery(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle discovery step - scan network for Lovi devices."""
-        errors: dict[str, str] = {}
-
+        """Handle the initial step."""
         if user_input is not None:
-            if user_input.get("action") == "manual":
+            if user_input.get("choose_method") == "manual":
                 return await self.async_step_manual()
-            elif user_input.get("action") == "setup_new":
+            elif user_input.get("choose_method") == "setup_new":
                 return await self.async_step_setup_new()
-            elif user_input.get("action") == "scan":
-                # User clicked scan - try to find devices
-                return await self._async_scan_for_devices()
-
-        # Auto-scan on first entry
-        return await self._async_scan_for_devices()
-
-    async def _async_scan_for_devices(self) -> FlowResult:
-        """Scan network for Lovi devices."""
-        # Get the network prefix from the host
-        import socket
-        local_ip = ""
-        try:
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 80))
-            local_ip = s.getsockname()[0]
-            s.close()
-            _LOGGER.debug("Local IP: %s", local_ip)
-        except Exception as e:
-            _LOGGER.warning("Failed to get local IP: %s", e)
-
-        # Use aiohttp from HA
-        session = aiohttp_client.async_get_clientsession(self.hass)
-
-        if local_ip:
-            # Scan local network for Lovi devices concurrently
-            prefix = ".".join(local_ip.split(".")[:3])
-            
-            async def check_ip(ip: str):
-                try:
-                    async with session.get(f"http://{ip}/status", timeout=aiohttp.ClientTimeout(total=0.3)) as resp:
-                        if resp.status == 200:
-                            data = await resp.json()
-                            _LOGGER.info("Found device at %s: %s", ip, data)
-                            if "device_type" in data or "model" in data:
-                                return {
-                                    "host": ip,
-                                    "port": 80,
-                                    "model": data.get("model", "Lovi Device"),
-                                    "device_type": data.get("device_type", "unknown"),
-                                }
-                except Exception:
-                    pass
-                return None
-
-            # Scan IPs concurrently
-            scan_ips = [f"{prefix}.{i}" for i in range(1, 255)]
-            _LOGGER.info("Scanning %d IPs concurrently...", len(scan_ips))
-            
-            results = await asyncio.gather(*[check_ip(ip) for ip in scan_ips])
-            discovered_devices = [r for r in results if r is not None]
-            
-            _LOGGER.info("Scan complete. Found %d devices", len(discovered_devices))
-            
-            if discovered_devices:
-                device = discovered_devices[0]
-                _LOGGER.info("Creating entry for device at %s", device["host"])
-                return await self._async_validate_and_create_entry(
-                    device["host"],
-                    device["port"],
-                    discovery_data=device,
-                )
 
         return self.async_show_form(
-            step_id="discovery",
+            step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required("action"): vol.In(
+                    vol.Required("choose_method", default="manual"): vol.In(
                         {
-                            "scan": "Scan Network",
-                            "manual": "Enter IP Manually",
-                            "setup_new": "Set up new device (AP mode)",
+                            "manual": "Enter IP address manually",
+                            "setup_new": "Set up a new device (AP mode)",
                         }
                     )
                 }
             ),
             errors={},
-            description_placeholders={
-                "message": "Searching for Lovi devices on your network...\n\n"
-                          "If a device is found, it will appear automatically.\n\n"
-                          "Make sure your device is powered on and connected to the same network.",
-            },
         )
 
     async def async_step_manual(
