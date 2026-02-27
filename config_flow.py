@@ -8,6 +8,7 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import aiohttp_client
 
 from .api import ApiCredentials, SecureApiClient
 from .api.exceptions import LoviConnectionError, LoviApiError
@@ -40,39 +41,13 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the initial step - auto-discover devices."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            if user_input.get("choose_method") == "manual":
-                return await self.async_step_manual()
-            elif user_input.get("choose_method") == "setup_new":
-                return await self.async_step_setup_new()
-            elif user_input.get("choose_method") == "search":
-                # User wants to search - zeroconf will discover automatically
-                return await self.async_step_manual()
-
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required("choose_method", default="manual"): vol.In(
-                        {
-                            "manual": "Enter IP address manually",
-                            "setup_new": "Set up a new device (AP mode)",
-                        }
-                    )
-                }
-            ),
-            errors=errors,
-            description_placeholders={
-                "app_name": "Lovi",
-            },
-        )
+        # Automatically trigger discovery first
+        return await self.async_step_discovery()
 
     async def async_step_discovery(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle discovery step - shows searching, waits for zeroconf."""
+        """Handle discovery step - scan network for Lovi devices."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -80,6 +55,66 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
                 return await self.async_step_manual()
             elif user_input.get("action") == "setup_new":
                 return await self.async_step_setup_new()
+            elif user_input.get("action") == "scan":
+                # User clicked scan - try to find devices
+                return await self._async_scan_for_devices()
+
+        # Auto-scan on first entry
+        return await self._async_scan_for_devices()
+
+    async def _async_scan_for_devices(self) -> FlowResult:
+        """Scan network for Lovi devices."""
+        # Get the network prefix from the host
+        hostname = self.hass.helpers.instance_name()
+        local_ip = ""
+        try:
+            s = self.hass.helpers.aiohttp_client._async_create_clientsession()
+        except Exception:
+            pass
+
+        # Use aiohttp from HA
+        session = aiohttp_client.async_get_clientsession(self.hass)
+        
+        # Get local IP
+        import socket
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+        except Exception:
+            pass
+
+        if local_ip:
+            # Scan local network for Lovi devices
+            prefix = ".".join(local_ip.split(".")[:3])
+            discovered_devices = []
+
+            # Try common IPs or scan range
+            for last_octet in [1, 14, 50, 100, 150, 200, 250]:
+                ip = f"{prefix}.{last_octet}"
+                try:
+                    async with session.get(f"http://{ip}/status", timeout=1) as resp:
+                        if resp.status == 200:
+                            data = await resp.json()
+                            if "device_type" in data or "model" in data:
+                                discovered_devices.append({
+                                    "host": ip,
+                                    "port": 80,
+                                    "model": data.get("model", "Lovi Device"),
+                                    "device_type": data.get("device_type", "unknown"),
+                                })
+                except Exception:
+                    pass
+
+            if discovered_devices:
+                # Found devices - create entry for first one
+                device = discovered_devices[0]
+                return await self._async_validate_and_create_entry(
+                    device["host"],
+                    device["port"],
+                    discovery_data=device,
+                )
 
         return self.async_show_form(
             step_id="discovery",
@@ -87,14 +122,14 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required("action"): vol.In(
                         {
-                            "wait": "Keep searching",
+                            "scan": "Scan Network",
                             "manual": "Enter IP Manually",
                             "setup_new": "Set up new device (AP mode)",
                         }
                     )
                 }
             ),
-            errors=errors,
+            errors={},
             description_placeholders={
                 "message": "Searching for Lovi devices on your network...\n\n"
                           "If a device is found, it will appear automatically.\n\n"
