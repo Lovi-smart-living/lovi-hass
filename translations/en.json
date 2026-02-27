@@ -2,11 +2,32 @@
     "config": {
         "step": {
             "user": {
-                "title": "Lovi Device",
-                "description": "Enter the IP address of your Lovi Presence Gen One device.",
+                "title": "Lovi",
+                "description": "Welcome to Lovi! Choose how you want to add your device.",
+                "data": {
+                    "choose_method": "How do you want to add your device?"
+                }
+            },
+            "discovery": {
+                "title": "Searching for devices",
+                "description": "{message}",
+                "data": {
+                    "action": "What would you like to do?"
+                }
+            },
+            "manual": {
+                "title": "Enter Device Address",
+                "description": "Enter the IP address of your Lovi device.",
                 "data": {
                     "host": "Host/IP Address",
                     "port": "Port"
+                }
+            },
+            "setup_new": {
+                "title": "Set Up New Device",
+                "description": "To set up a new Lovi device:\n\n1. Power on your Lovi device\n2. Wait 30 seconds for it to start in AP mode\n3. Connect your phone to the device's WiFi network (Lovi-XXXX)\n4. Follow the on-screen instructions to connect to your home WiFi\n5. Click 'Continue' below",
+                "data": {
+                    "action": "Continue"
                 }
             },
             "zeroconf_confirm": {
@@ -21,7 +42,8 @@
         },
         "abort": {
             "already_configured": "Device is already configured.",
-            "cannot_connect": "Failed to connect to device."
+            "cannot_connect": "Failed to connect to device.",
+            "setup_complete": "Device setup complete. The device should now be discovered automatically."
         }
     },
     "entity": {

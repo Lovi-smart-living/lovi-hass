@@ -16,7 +16,6 @@ from .const import DEFAULT_PORT, DOMAIN
 try:
     from homeassistant.components.zeroconf import ZeroconfServiceInfo
 except ImportError:
-    # Fallback for older HA versions
     from typing import Any as ZeroconfServiceInfo
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,25 +39,89 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step."""
+        """Handle the initial step with discovery options."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # Validate IP address
+            if user_input.get("choose_method") == "search":
+                return await self.async_step_discovery()
+            elif user_input.get("choose_method") == "manual":
+                return await self.async_step_manual()
+            elif user_input.get("choose_method") == "setup_new":
+                return await self.async_step_setup_new()
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("choose_method", default="search"): vol.In(
+                        {
+                            "search": "Search for devices on my network",
+                            "setup_new": "Set up a new device (AP mode)",
+                            "manual": "Enter IP address manually",
+                        }
+                    )
+                }
+            ),
+            errors=errors,
+            description_placeholders={
+                "app_name": "Lovi",
+            },
+        )
+
+    async def async_step_discovery(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle discovery step - shows searching, waits for zeroconf."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            if user_input.get("action") == "manual":
+                return await self.async_step_manual()
+            elif user_input.get("action") == "setup_new":
+                return await self.async_step_setup_new()
+
+        return self.async_show_form(
+            step_id="discovery",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("action"): vol.In(
+                        {
+                            "wait": "Keep searching",
+                            "manual": "Enter IP Manually",
+                            "setup_new": "Set up new device (AP mode)",
+                        }
+                    )
+                }
+            ),
+            errors=errors,
+            description_placeholders={
+                "message": "Searching for Lovi devices on your network...\n\n"
+                          "If a device is found, it will appear automatically.\n\n"
+                          "Make sure your device is powered on and connected to the same network.",
+            },
+        )
+
+    async def async_step_manual(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle manual IP entry."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
             try:
                 ip_address(user_input[CONF_HOST])
             except ValueError:
                 errors["base"] = "invalid_ip_address"
 
             if not errors:
-                # Create entry
-                return self.async_create_entry(
-                    title=f"Lovi - {user_input[CONF_HOST]}",
-                    data=user_input,
+                return await self._async_validate_and_create_entry(
+                    user_input[CONF_HOST],
+                    user_input.get(CONF_PORT, DEFAULT_PORT),
                 )
 
         return self.async_show_form(
-            step_id="user",
+            step_id="manual",
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_HOST): str,
@@ -66,6 +129,73 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
                 }
             ),
             errors=errors,
+        )
+
+    async def async_step_setup_new(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle setup of new device (AP mode instructions)."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            if user_input.get("action") == "continue":
+                return await self.async_step_manual()
+            elif user_input.get("action") == "done":
+                return self.async_abort(reason="setup_complete")
+
+        return self.async_show_form(
+            step_id="setup_new",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("action"): vol.In(
+                        {
+                            "continue": "I've Connected My Device",
+                        }
+                    )
+                }
+            ),
+            errors=errors,
+        )
+
+    async def _async_validate_and_create_entry(
+        self, host: str, port: int, discovery_data: dict | None = None
+    ) -> FlowResult:
+        """Validate device and create entry."""
+        entry_data = {
+            CONF_HOST: host,
+            CONF_PORT: port,
+        }
+
+        if discovery_data:
+            entry_data.update(discovery_data)
+
+        try:
+            client = SecureApiClient(
+                host=host,
+                port=port,
+                credentials=ApiCredentials(),
+                use_https=False,
+                timeout=5,
+            )
+            try:
+                device_info = await client.get("/api/device")
+                entry_data["device_id"] = device_info.get("id", "")
+                entry_data["device_name"] = device_info.get("name", "")
+                entry_data["device_type"] = device_info.get("type", "")
+                entry_data["firmware_version"] = device_info.get("firmware_version", "")
+            finally:
+                await client.close()
+        except LoviConnectionError:
+            _LOGGER.warning("Could not connect to device at %s:%d", host, port)
+        except LoviApiError as err:
+            _LOGGER.warning("API error for %s:%d: %s", host, port, err)
+
+        device_name = entry_data.get("device_name") or entry_data.get("model", "Lovi Device")
+        title = f"Lovi - {device_name}"
+
+        return self.async_create_entry(
+            title=title,
+            data=entry_data,
         )
 
     async def async_step_zeroconf(
@@ -134,20 +264,7 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
         port: int,
         discovery_data: dict[str, Any],
     ) -> dict[str, Any]:
-        """Validate discovered device by calling the API.
-
-        Args:
-            host: Device IP address
-            port: Device port
-            discovery_data: Discovery properties
-
-        Returns:
-            Validated device data
-
-        Raises:
-            LoviConnectionError: If device cannot be reached
-            LoviApiError: If API returns an error
-        """
+        """Validate discovered device by calling the API."""
         _LOGGER.debug("Validating discovered device at %s:%d", host, port)
 
         client = SecureApiClient(
@@ -193,12 +310,9 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
             if discovery_info:
                 host = discovery_info.get("host", "")
                 port = discovery_info.get("port", DEFAULT_PORT)
-                mac_address = discovery_info.get("mac", "")
                 device_name = validated_data.get(
                     "device_name", discovery_info.get("model", "Lovi Device")
                 )
-
-                unique_id = f"lovi-{mac_address.replace(':', '').lower()}"
 
                 entry_data = {
                     CONF_HOST: host,

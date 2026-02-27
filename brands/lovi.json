@@ -1,0 +1,10 @@
+{
+  "domain": "lovi",
+  "name": "Lovi",
+  "integrations": [
+    "lovi"
+  ],
+  "iot_standards": [
+    "mqtt"
+  ]
+}
