@@ -67,18 +67,8 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
     async def _async_scan_for_devices(self) -> FlowResult:
         """Scan network for Lovi devices."""
         # Get the network prefix from the host
-        hostname = self.hass.helpers.instance_name()
-        local_ip = ""
-        try:
-            s = self.hass.helpers.aiohttp_client._async_create_clientsession()
-        except Exception:
-            pass
-
-        # Use aiohttp from HA
-        session = aiohttp_client.async_get_clientsession(self.hass)
-        
-        # Get local IP
         import socket
+        local_ip = ""
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
@@ -87,6 +77,9 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
             _LOGGER.debug("Local IP: %s", local_ip)
         except Exception as e:
             _LOGGER.warning("Failed to get local IP: %s", e)
+
+        # Use aiohttp from HA
+        session = aiohttp_client.async_get_clientsession(self.hass)
 
         if local_ip:
             # Scan local network for Lovi devices
