@@ -31,3 +31,19 @@ async def async_setup_entry(hass, entry):
 
     return True
 
+
+async def async_unload_entry(hass, entry):
+    """Unload a config entry."""
+    from homeassistant.const import Platform
+    from homeassistant.config_entries import ConfigEntry
+
+    # Unload platforms
+    unload_ok = await hass.config_entries.async_unload_platforms(
+        entry, [Platform.SENSOR, Platform.SWITCH, Platform.NUMBER]
+    )
+
+    if unload_ok:
+        # Remove coordinator from hass data
+        hass.data[DOMAIN].pop(entry.entry_id, None)
+
+    return unload_ok

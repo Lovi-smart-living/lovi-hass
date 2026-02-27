@@ -5,6 +5,6 @@
     "lovi"
   ],
   "iot_standards": [
-    "mqtt"
+    "local"
   ]
 }
