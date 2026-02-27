@@ -135,3 +135,19 @@ class LoviDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._device is None:
             raise ValueError("Device not initialized")
         return await self._device.async_set_led(enabled)
+
+    async def async_set_led_brightness(self, brightness: int) -> bool:
+        """Set device LED brightness.
+
+        Args:
+            brightness: Brightness value 0-255
+
+        Returns:
+            True if successful
+
+        Raises:
+            NotImplementedError: If device doesn't support LED brightness
+        """
+        if self._device is None:
+            raise ValueError("Device not initialized")
+        return await self._device.async_set_led_brightness(brightness)

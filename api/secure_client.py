@@ -335,6 +335,37 @@ class SecureApiClient:
         """
         return await self.post("/api/settings", settings)
 
+    async def async_set_led(self, enabled: bool) -> dict[str, Any]:
+        """Set LED on/off state.
+
+        Args:
+            enabled: LED state (true = on, false = off)
+
+        Returns:
+            Dictionary with LED state
+        """
+        return await self.post("/api/led", {"state": "on" if enabled else "off"})
+
+    async def async_set_led_brightness(self, brightness: int) -> dict[str, Any]:
+        """Set LED brightness.
+
+        Args:
+            brightness: Brightness value 0-255
+
+        Returns:
+            Dictionary with LED state
+        """
+        brightness = max(0, min(255, brightness))
+        return await self.post("/api/led", {"brightness": brightness})
+
+    async def async_get_led(self) -> dict[str, Any]:
+        """Get LED state and brightness.
+
+        Returns:
+            Dictionary with LED state, brightness, etc.
+        """
+        return await self.get("/api/led")
+
     async def close(self) -> None:
         """Close the client session."""
         if self._session and not self._session.closed:

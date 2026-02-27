@@ -42,6 +42,7 @@ class PresenceGenOneState:
     distance: float = 0.0
     sensitivity: int = 50
     led_enabled: bool = True
+    led_brightness: int = 255
     temperature: float | None = None
     uptime: int = 0
 
@@ -191,6 +192,32 @@ class PresenceGenOne(LoviDevice):
             True if successful
         """
         self._state.led_enabled = enabled
+        # Send to device
+        try:
+            await self._api.async_set_led(enabled)
+        except Exception:
+            pass  # Device may not support this
+        return True
+
+    async def async_set_led_brightness(self, brightness: int) -> bool:
+        """Set LED brightness.
+
+        Args:
+            brightness: Brightness value 0-255
+
+        Returns:
+            True if successful
+        """
+        brightness = max(0, min(255, brightness))
+        self._state.led_brightness = brightness
+        # Also turn on LED if brightness > 0
+        if brightness > 0:
+            self._state.led_enabled = True
+        # Send to device
+        try:
+            await self._api.async_set_led_brightness(brightness)
+        except Exception:
+            pass  # Device may not support this
         return True
 
     @property
@@ -201,6 +228,7 @@ class PresenceGenOne(LoviDevice):
             has_motion=True,
             has_temperature=True,
             has_led=True,
+            has_led_brightness=True,
             has_sensitivity=True,
             max_distance=6.0,
         )

@@ -50,6 +50,7 @@ class DeviceCapabilities:
         has_temperature: Whether device reports temperature
         has_humidity: Whether device reports humidity
         has_led: Whether device has LED indicator control
+        has_led_brightness: Whether device supports LED brightness control
         has_sensitivity: Whether device supports sensitivity control
         max_distance: Maximum detection distance in meters (0 if not applicable)
         supported_entities: List of HA entity types (e.g., ["sensor", "switch"])
@@ -60,6 +61,7 @@ class DeviceCapabilities:
     has_temperature: bool = False
     has_humidity: bool = False
     has_led: bool = False
+    has_led_brightness: bool = False
     has_sensitivity: bool = False
     max_distance: float = 0.0
     supported_entities: list[str] = field(default_factory=list)
@@ -280,6 +282,24 @@ class LoviDevice(ABC):
         """
         raise NotImplementedError(
             f"{self.device_type} does not support LED control"
+        )
+
+    async def async_set_led_brightness(self, brightness: int) -> bool:
+        """Set LED brightness.
+
+        Override in device classes that support LED brightness control.
+
+        Args:
+            brightness: Brightness value 0-255
+
+        Returns:
+            True if successful
+
+        Raises:
+            NotImplementedError: If device doesn't support LED brightness
+        """
+        raise NotImplementedError(
+            f"{self.device_type} does not support LED brightness control"
         )
 
     async def async_reboot(self) -> bool:

@@ -27,6 +27,17 @@ SENSITIVITY_DESCRIPTION = NumberEntityDescription(
     mode=NumberMode.SLIDER,
 )
 
+LED_BRIGHTNESS_DESCRIPTION = NumberEntityDescription(
+    key="led_brightness",
+    name="LED Brightness",
+    icon="mdi:brightness-6",
+    translation_key="led_brightness",
+    native_min_value=0,
+    native_max_value=255,
+    native_unit_of_measurement=None,
+    mode=NumberMode.SLIDER,
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -41,13 +52,21 @@ async def async_setup_entry(
     if coordinator.device is None:
         return
 
-    if not coordinator.device.capabilities.has_sensitivity:
-        return
+    entities = []
 
-    async_add_entities([LoviNumber(coordinator)])
+    # Add sensitivity control if supported
+    if coordinator.device.capabilities.has_sensitivity:
+        entities.append(LoviSensitivityNumber(coordinator))
+
+    # Add LED brightness control if supported
+    if coordinator.device.capabilities.has_led_brightness:
+        entities.append(LoviLEDBrightnessNumber(coordinator))
+
+    if entities:
+        async_add_entities(entities)
 
 
-class LoviNumber(CoordinatorEntity, NumberEntity):
+class LoviSensitivityNumber(CoordinatorEntity, NumberEntity):
     """Number entity for Lovi device sensitivity control."""
 
     def __init__(
@@ -81,4 +100,41 @@ class LoviNumber(CoordinatorEntity, NumberEntity):
     async def async_set_native_value(self, value: float) -> None:
         """Set the sensitivity value."""
         await self.coordinator.async_set_sensitivity(int(value))
+        await self.coordinator.async_request_refresh()
+
+
+class LoviLEDBrightnessNumber(CoordinatorEntity, NumberEntity):
+    """Number entity for Lovi LED brightness control."""
+
+    def __init__(
+        self,
+        coordinator: LoviDataUpdateCoordinator,
+    ) -> None:
+        """Initialize the number entity."""
+        super().__init__(coordinator)
+        self.entity_description = LED_BRIGHTNESS_DESCRIPTION
+        self._attr_unique_id = f"{coordinator.client.host}_led_brightness"
+        self._attr_has_entity_name = True
+
+        if coordinator.device:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, coordinator.device.device_id)},
+                name=coordinator.device.name,
+                manufacturer=MANUFACTURER,
+                model=coordinator.device.model,
+                sw_version=coordinator.device.device_info.sw_version,
+            )
+
+    @property
+    def native_value(self) -> float | None:
+        """Return the current LED brightness value."""
+        if self.coordinator.device is None:
+            return None
+
+        # Get brightness from device state
+        return float(self.coordinator.device.state.get("led_brightness", 255))
+
+    async def async_set_native_value(self, value: float) -> None:
+        """Set the LED brightness value."""
+        await self.coordinator.async_set_led_brightness(int(value))
         await self.coordinator.async_request_refresh()
