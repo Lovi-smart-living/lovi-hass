@@ -179,7 +179,7 @@ class SecureApiClient:
                     headers=headers,
                     timeout=timeout,
                 ) as response:
-                    await self._handle_response_errors(response, endpoint)
+                    self._handle_response_errors(response, endpoint)
                     return await response.json()
 
             except LoviApiError:
