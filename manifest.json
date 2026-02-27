@@ -5,6 +5,10 @@
   "zeroconf": [
     {
       "type": "_lovi._tcp.local."
+    },
+    {
+      "type": "_http._tcp.local.",
+      "name": "lovi*"
     }
   ],
   "documentation": "https://github.com/lovi-iot/lovi-hass/blob/main/README.md",
