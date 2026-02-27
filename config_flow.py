@@ -82,36 +82,33 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
         session = aiohttp_client.async_get_clientsession(self.hass)
 
         if local_ip:
-            # Scan local network for Lovi devices
+            # Scan local network for Lovi devices concurrently
             prefix = ".".join(local_ip.split(".")[:3])
-            discovered_devices = []
-
-            # Try common IPs - prioritize gateway and .14
-            scan_ips = [1, 14, 254, 100, 50, 200, 2, 3, 4, 5, 10, 20, 30, 40, 60, 70, 80, 90, 150, 250]
-            _LOGGER.info("Starting network scan from %s.%s - scanning %d IPs", prefix, ".x"*3, len(scan_ips))
             
-            for last_octet in scan_ips:
-                ip = f"{prefix}.{last_octet}"
+            async def check_ip(ip: str):
                 try:
-                    _LOGGER.debug("Checking %s...", ip)
-                    async with session.get(f"http://{ip}/status", timeout=aiohttp.ClientTimeout(total=1.5)) as resp:
+                    async with session.get(f"http://{ip}/status", timeout=aiohttp.ClientTimeout(total=0.3)) as resp:
                         if resp.status == 200:
                             data = await resp.json()
-                            _LOGGER.info("Got response from %s: %s", ip, data)
+                            _LOGGER.info("Found device at %s: %s", ip, data)
                             if "device_type" in data or "model" in data:
-                                _LOGGER.info("FOUND LOvi device at %s", ip)
-                                discovered_devices.append({
+                                return {
                                     "host": ip,
                                     "port": 80,
                                     "model": data.get("model", "Lovi Device"),
                                     "device_type": data.get("device_type", "unknown"),
-                                })
-                                break  # Stop after first device found
-                except asyncio.TimeoutError:
-                    _LOGGER.debug("Timeout on %s", ip)
-                except Exception as e:
-                    _LOGGER.debug("Error on %s: %s", ip, e)
+                                }
+                except Exception:
+                    pass
+                return None
 
+            # Scan IPs concurrently
+            scan_ips = [f"{prefix}.{i}" for i in range(1, 255)]
+            _LOGGER.info("Scanning %d IPs concurrently...", len(scan_ips))
+            
+            results = await asyncio.gather(*[check_ip(ip) for ip in scan_ips])
+            discovered_devices = [r for r in results if r is not None]
+            
             _LOGGER.info("Scan complete. Found %d devices", len(discovered_devices))
             
             if discovered_devices:
