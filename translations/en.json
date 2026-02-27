@@ -43,7 +43,8 @@
         "abort": {
             "already_configured": "Device is already configured.",
             "cannot_connect": "Failed to connect to device.",
-            "setup_complete": "Device setup complete. The device should now be discovered automatically."
+            "setup_complete": "Device setup complete. The device should now be discovered automatically.",
+            "not_lovi_device": "Discovered device is not a Lovi device."
         }
     },
     "entity": {

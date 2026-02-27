@@ -4,7 +4,10 @@
   "config_flow": true,
   "zeroconf": [
     {
-      "type": "_lovi._tcp.local.",
+      "type": "_lovi._tcp.local."
+    },
+    {
+      "type": "_http._tcp.local.",
       "name": "lovi"
     }
   ],
