@@ -2,7 +2,12 @@
   "domain": "lovi",
   "name": "Lovi",
   "config_flow": true,
-  "zeroconf": ["_lovi._tcp.local."],
+  "zeroconf": [
+    {
+      "type": "_lovi._tcp",
+      "name": "lovi"
+    }
+  ],
   "documentation": "https://github.com/lovi-iot/lovi-hass/blob/main/README.md",
   "issue_tracker": "https://github.com/lovi-iot/lovi-hass/issues",
   "dependencies": [],
@@ -13,4 +18,3 @@
   "log_level": "info",
   "brand": "lovi"
 }
-

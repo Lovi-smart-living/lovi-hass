@@ -39,26 +39,26 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step with discovery options."""
+        """Handle the initial step - auto-discover devices."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            if user_input.get("choose_method") == "search":
-                return await self.async_step_discovery()
-            elif user_input.get("choose_method") == "manual":
+            if user_input.get("choose_method") == "manual":
                 return await self.async_step_manual()
             elif user_input.get("choose_method") == "setup_new":
                 return await self.async_step_setup_new()
+            elif user_input.get("choose_method") == "search":
+                # User wants to search - zeroconf will discover automatically
+                return await self.async_step_manual()
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required("choose_method", default="search"): vol.In(
+                    vol.Required("choose_method", default="manual"): vol.In(
                         {
-                            "search": "Search for devices on my network",
-                            "setup_new": "Set up a new device (AP mode)",
                             "manual": "Enter IP address manually",
+                            "setup_new": "Set up a new device (AP mode)",
                         }
                     )
                 }
@@ -300,52 +300,32 @@ class LoviConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_zeroconf_confirm(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle user confirmation of discovered device."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            discovery_info = self.context.get("discovery_info")
-            validated_data = self.context.get("validated_data", {})
-
-            if discovery_info:
-                host = discovery_info.get("host", "")
-                port = discovery_info.get("port", DEFAULT_PORT)
-                device_name = validated_data.get(
-                    "device_name", discovery_info.get("model", "Lovi Device")
-                )
-
-                entry_data = {
-                    CONF_HOST: host,
-                    CONF_PORT: port,
-                }
-
-                if validated_data.get("api_validated"):
-                    entry_data["device_id"] = validated_data.get("device_id")
-                    entry_data["device_type"] = validated_data.get("device_type")
-                    entry_data["firmware_version"] = validated_data.get("firmware_version")
-                    entry_data["capabilities"] = validated_data.get("capabilities")
-
-                return self.async_create_entry(
-                    title=f"Lovi - {device_name}",
-                    data=entry_data,
-                )
-
+        """Handle zeroconf discovery - auto-create without confirmation."""
         discovery_info = self.context.get("discovery_info", {})
-        device_name = discovery_info.get(
-            "model",
-            discovery_info.get("device_name", "Lovi Device"),
+        validated_data = self.context.get("validated_data", {})
+
+        host = discovery_info.get("host", "")
+        port = discovery_info.get("port", DEFAULT_PORT)
+        device_name = validated_data.get(
+            "device_name", discovery_info.get("model", "Lovi Device")
         )
 
-        return self.async_show_form(
-            step_id="zeroconf_confirm",
-            data_schema=vol.Schema({}),
-            description_placeholders={
-                "name": device_name,
-                "host": discovery_info.get("host", ""),
-                "device_type": discovery_info.get("device_type", "unknown"),
-                "firmware_version": discovery_info.get("firmware_version", "unknown"),
-            },
-            errors=errors,
+        entry_data = {
+            CONF_HOST: host,
+            CONF_PORT: port,
+        }
+
+        if validated_data.get("api_validated"):
+            entry_data["device_id"] = validated_data.get("device_id")
+            entry_data["device_type"] = validated_data.get("device_type")
+            entry_data["firmware_version"] = validated_data.get("firmware_version")
+            entry_data["capabilities"] = validated_data.get("capabilities")
+            entry_data["device_name"] = device_name
+
+        # Auto-create entry without user confirmation
+        return self.async_create_entry(
+            title=f"Lovi - {device_name}",
+            data=entry_data,
         )
 
     @staticmethod
